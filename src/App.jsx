@@ -28,7 +28,7 @@ const COLOR_OPTIONS = [
 ];
 
 const FREE_TIER_LIMITS = {
-maxTrackers: 2,
+maxTrackers: 5,
 historyDays: 7,
 };
 
@@ -514,62 +514,57 @@ const goalMet = tracker.goalMinutes && avgToday && avgToday / 60000 >= tracker.g
 return (
 <div style={{
 background: ‘white’,
-borderRadius: ‘24px’,
-padding: ‘18px’,
-marginBottom: ‘12px’,
-boxShadow: ‘0 2px 16px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.03)’,
+borderRadius: ‘20px’,
+padding: ‘14px’,
+marginBottom: ‘10px’,
+boxShadow: ‘0 2px 12px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.03)’,
 position: ‘relative’,
 overflow: ‘hidden’,
+borderLeft: `4px solid ${tracker.color}`,
 }}>
-{/* Top row: icon, name, stats button */}
-<div style={{ display: ‘flex’, alignItems: ‘center’, justifyContent: ‘space-between’, marginBottom: ‘14px’ }}>
-<div style={{ display: ‘flex’, alignItems: ‘center’, gap: ‘10px’ }}>
+{/* Top row: prominent colored icon block + name + time-since on right */}
+<div style={{ display: ‘flex’, alignItems: ‘center’, gap: ‘12px’, marginBottom: ‘10px’ }}>
 <div style={{
-width: ‘36px’, height: ‘36px’,
-borderRadius: ‘11px’,
-background: `${tracker.color}15`,
+width: ‘46px’, height: ‘46px’,
+borderRadius: ‘13px’,
+background: tracker.color,
 display: ‘flex’, alignItems: ‘center’, justifyContent: ‘center’,
-color: tracker.color,
+color: ‘white’,
+flexShrink: 0,
+boxShadow: `0 4px 12px ${tracker.color}40`,
 }}>
-<Icon size={16} strokeWidth={2} />
+<Icon size={20} strokeWidth={2.2} />
 </div>
-<div>
-<div style={{ fontSize: ‘15px’, fontWeight: 600, color: ‘#0f172a’, letterSpacing: ‘-0.01em’ }}>{tracker.name}</div>
-<div style={{ fontSize: ‘11px’, color: ‘#94a3b8’, marginTop: ‘1px’, display: ‘flex’, alignItems: ‘center’, gap: ‘6px’ }}>
-<span>Heute · {todays.length}×</span>
-{goalMet && <Flame size={10} color="#f59e0b" fill="#f59e0b" />}
+<div style={{ flex: 1, minWidth: 0 }}>
+<div style={{ display: ‘flex’, alignItems: ‘center’, gap: ‘6px’ }}>
+<div style={{ fontSize: ‘16px’, fontWeight: 700, color: ‘#0f172a’, letterSpacing: ‘-0.01em’ }}>{tracker.name}</div>
+{goalMet && <Flame size={12} color="#f59e0b" fill="#f59e0b" />}
+</div>
+<div style={{ fontSize: ‘11px’, color: ‘#64748b’, marginTop: ‘2px’ }}>
+{todays.length}× heute{avgToday ? ` · Ø ${formatMinutes(avgToday)}` : ‘’}
 </div>
 </div>
+<div style={{ textAlign: ‘right’, flexShrink: 0 }}>
+<div style={{ fontSize: ‘9px’, letterSpacing: ‘0.15em’, color: ‘#94a3b8’, textTransform: ‘uppercase’, fontWeight: 600 }}>
+Seit
 </div>
-<button onClick={onShowStats} style={{ …iconBtnStyle, width: ‘32px’, height: ‘32px’ }}>
-<BarChart3 size={13} />
+<div style={{
+fontFamily: ‘“DM Serif Display”, Georgia, serif’,
+fontSize: last ? ‘20px’ : ‘16px’,
+fontStyle: ‘italic’,
+color: last ? ‘#0f172a’ : ‘#cbd5e1’,
+lineHeight: 1.1,
+fontVariantNumeric: ‘tabular-nums’,
+}}>
+{last ? formatDuration(timeSinceLast) : ‘—’}
+</div>
+</div>
+<button onClick={onShowStats} style={{ …iconBtnStyle, width: ‘30px’, height: ‘30px’, flexShrink: 0 }}>
+<BarChart3 size={12} />
 </button>
 </div>
 
 ```
-  {/* Time since last - hero */}
-  <div style={{ textAlign: 'center', padding: '8px 0 14px' }}>
-    <div style={{ fontSize: '10px', letterSpacing: '0.2em', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px', fontWeight: 500 }}>
-      {last ? 'Seit dem Letzten' : 'Noch kein Eintrag'}
-    </div>
-    <div style={{
-      fontFamily: '"DM Serif Display", Georgia, serif',
-      fontSize: last ? '36px' : '24px',
-      fontWeight: 400,
-      fontStyle: 'italic',
-      color: last ? '#0f172a' : '#cbd5e1',
-      letterSpacing: '-0.03em',
-      lineHeight: 1,
-    }}>
-      {last ? formatDuration(timeSinceLast) : '—'}
-    </div>
-    {avgToday && (
-      <div style={{ fontSize: '11px', color: '#64748b', marginTop: '8px' }}>
-        Ø Pause heute: <span style={{ color: tracker.color, fontWeight: 600 }}>{formatMinutes(avgToday)}</span>
-      </div>
-    )}
-  </div>
-
   {/* Time Scrubber */}
   <TimeScrubber
     offset={offset}
@@ -1002,6 +997,29 @@ whiteSpace: ‘nowrap’,
 
 function InsightsTab({ trackers, combos, entries, isPremium, now, onUpdateTracker, onShowPaywall }) {
 const [selectedId, setSelectedId] = useState(trackers[0]?.id);
+const [demoMode, setDemoMode] = useState(false);
+
+// Generate fake demo entries for preview
+const demoEntries = React.useMemo(() => {
+if (!demoMode || !trackers[0]) return [];
+const fake = [];
+const tid = selectedId || trackers[0].id;
+const nowTs = Date.now();
+// Last 30 days, ~4-8 per day with peaks at 9, 14, 20
+for (let day = 30; day >= 0; day–) {
+const base = nowTs - day * 86400000;
+const count = 3 + Math.floor(Math.random() * 5);
+const peakHours = [9, 14, 20];
+for (let i = 0; i < count; i++) {
+const hour = Math.random() < 0.6 ? peakHours[Math.floor(Math.random() * 3)] : Math.floor(Math.random() * 16) + 7;
+const minute = Math.floor(Math.random() * 60);
+const d = new Date(base);
+d.setHours(hour, minute);
+fake.push({ id: `demo_${day}_${i}`, trackerId: tid, timestamp: d.getTime() });
+}
+}
+return fake;
+}, [demoMode, selectedId, trackers]);
 
 if (trackers.length === 0) {
 return (
@@ -1020,7 +1038,8 @@ Lege zuerst einen Tracker an, um hier Muster zu sehen.
 }
 
 const tracker = trackers.find(t => t.id === selectedId) || trackers[0];
-const trackerEntries = entries.filter(e => e.trackerId === tracker.id);
+const realEntries = entries.filter(e => e.trackerId === tracker.id);
+const trackerEntries = demoMode ? demoEntries : realEntries;
 
 return (
 <>
@@ -1033,7 +1052,7 @@ Muster erkennen
 
 ```
   {/* Tracker selector */}
-  <div style={{ padding: '0 16px 16px', overflowX: 'auto' }} className="no-scrollbar">
+  <div style={{ padding: '0 16px 12px', overflowX: 'auto' }} className="no-scrollbar">
     <div style={{ display: 'flex', gap: '6px' }}>
       {trackers.map(t => (
         <FilterChip key={t.id} active={selectedId === t.id} color={t.color} onClick={() => setSelectedId(t.id)}>
@@ -1042,6 +1061,28 @@ Muster erkennen
       ))}
     </div>
   </div>
+
+  {/* Demo Mode Toggle */}
+  {realEntries.length < 10 && (
+    <div style={{ padding: '0 16px 12px' }}>
+      <button onClick={() => setDemoMode(!demoMode)} style={{
+        width: '100%', padding: '10px 14px',
+        background: demoMode ? '#0f172a' : 'white',
+        color: demoMode ? 'white' : '#475569',
+        border: `1px ${demoMode ? 'solid #0f172a' : 'dashed #cbd5e1'}`,
+        borderRadius: '12px', cursor: 'pointer',
+        fontSize: '12px', fontWeight: 500,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+      }}>
+        {demoMode ? '✓ Demo-Daten an (Vorschau)' : '👁 Mit Demo-Daten ansehen'}
+      </button>
+      {demoMode && (
+        <div style={{ fontSize: '10px', color: '#94a3b8', textAlign: 'center', marginTop: '6px', fontStyle: 'italic' }}>
+          Beispieldaten der letzten 30 Tage – nicht gespeichert
+        </div>
+      )}
+    </div>
+  )}
 
   <div style={{ padding: '0 16px' }}>
     {/* Goal & Streak section */}
